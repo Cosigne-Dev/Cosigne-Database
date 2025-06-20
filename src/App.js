@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { Camera, Zap } from "lucide-react";
 
 export default function App() {
   const [imageSrc, setImageSrc] = useState(null);
@@ -10,20 +11,59 @@ export default function App() {
   });
   const [entries, setEntries] = useState([]);
   const [facingMode, setFacingMode] = useState("environment");
+  const [torchOn, setTorchOn] = useState(false);
   const videoRef = useRef();
   const canvasRef = useRef();
+  const streamRef = useRef(null);
+  const trackRef = useRef(null);
 
   const startCamera = async () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+
     const constraints = {
-      video: { facingMode }  // "user" for front, "environment" for rear
+      video: {
+        facingMode,
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        advanced: torchOn ? [{ torch: true }] : []
+      }
     };
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
+
+      const track = stream.getVideoTracks()[0];
+      trackRef.current = track;
+
+      const capabilities = track.getCapabilities();
+      if (capabilities.torch) {
+        await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+      }
     } catch (err) {
       console.error("Error accessing camera:", err);
+    }
+  };
+
+  const toggleTorch = async () => {
+    if (!trackRef.current) return;
+    const track = trackRef.current;
+    const capabilities = track.getCapabilities();
+    if (capabilities.torch) {
+      const newTorchState = !torchOn;
+      try {
+        await track.applyConstraints({ advanced: [{ torch: newTorchState }] });
+        setTorchOn(newTorchState);
+      } catch (err) {
+        console.error("Failed to toggle torch:", err);
+      }
+    } else {
+      alert("Torch not supported on this device/browser.");
     }
   };
 
@@ -62,6 +102,15 @@ export default function App() {
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
+  useEffect(() => {
+    startCamera();
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [facingMode, torchOn]);
+
   return (
     <div className="max-w-md mx-auto p-4 text-base">
       <h1 className="text-2xl mb-4 font-semibold text-center">Clothing Photo Capture</h1>
@@ -69,10 +118,16 @@ export default function App() {
       <div className="flex flex-col gap-3">
         <video ref={videoRef} autoPlay playsInline className="w-full rounded border" />
         <canvas ref={canvasRef} className="hidden" />
-        <div className="flex gap-2">
-          <button onClick={startCamera} className="flex-1 px-4 py-2 bg-blue-500 text-white rounded">Start Camera</button>
-          <button onClick={capturePhoto} className="flex-1 px-4 py-2 bg-green-500 text-white rounded">Capture Photo</button>
+
+        <div className="flex justify-center gap-4">
+          <button onClick={capturePhoto} className="p-4 bg-green-500 text-white rounded-full">
+            <Camera className="w-6 h-6" />
+          </button>
+          <button onClick={toggleTorch} className={`p-4 rounded-full ${torchOn ? "bg-yellow-400" : "bg-gray-400"} text-white`}>
+            <Zap className="w-6 h-6" />
+          </button>
         </div>
+
         <button onClick={toggleCamera} className="px-4 py-2 bg-yellow-500 text-white rounded">Switch Camera</button>
 
         {imageSrc && <img src={imageSrc} alt="Captured" className="w-full rounded mt-4" />}
