@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, Zap } from "lucide-react";
+import { Camera, Zap, RotateCw } from "lucide-react";
 
 export default function App() {
   const [imageSrc, setImageSrc] = useState(null);
@@ -126,9 +126,10 @@ export default function App() {
           <button onClick={toggleTorch} className={`p-4 rounded-full ${torchOn ? "bg-yellow-400" : "bg-gray-400"} text-white`}>
             <Zap className="w-6 h-6" />
           </button>
+          <button onClick={toggleCamera} className="p-4 bg-blue-500 text-white rounded-full">
+            <RotateCw className="w-6 h-6" />
+          </button>
         </div>
-
-        <button onClick={toggleCamera} className="px-4 py-2 bg-yellow-500 text-white rounded">Switch Camera</button>
 
         {imageSrc && <img src={imageSrc} alt="Captured" className="w-full rounded mt-4" />}
 
